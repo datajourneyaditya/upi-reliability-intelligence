@@ -1,0 +1,7 @@
+{# prod: use the configured schema verbatim (staging / intermediate / marts / ...) so the catalog
+   reads like the medallion design. ci: isolate every PR in ci_<suffix>_<layer> schemas. #}
+{% macro generate_schema_name(custom_schema_name, node) -%}
+    {%- if custom_schema_name is none -%}{{ target.schema }}
+    {%- elif target.name == 'ci' -%}{{ target.schema }}_{{ custom_schema_name | trim }}
+    {%- else -%}{{ custom_schema_name | trim }}{%- endif -%}
+{%- endmacro %}

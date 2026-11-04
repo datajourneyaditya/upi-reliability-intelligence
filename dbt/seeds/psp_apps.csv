@@ -1,0 +1,7 @@
+app_name,parent_company,app_category,sponsor_bank_ids,vpa_handles
+PhonePe,PhonePe Pvt Ltd,Third-party app,yes_bank|icici_bank|axis_bank,@ybl|@ibl|@axl
+Google Pay,Google India Digital Services,Third-party app,axis_bank|hdfc_bank|icici_bank|state_bank_of_india,@okaxis|@okhdfcbank|@okicici|@oksbi
+Paytm,One97 Communications,Third-party app,yes_bank|axis_bank|hdfc_bank|state_bank_of_india,@ptyes|@ptaxis|@pthdfc|@ptsbi
+WhatsApp,Meta Platforms,Third-party app,icici_bank|hdfc_bank|axis_bank|state_bank_of_india,@waicici|@wahdfcbank|@waaxis|@wasbi
+Amazon Pay,Amazon Pay (India),Third-party app,axis_bank|yes_bank,@apl|@yapl
+BHIM,NPCI BHIM Services,NPCI app,npci_bhim,@upi

@@ -1,0 +1,12 @@
+snapshots:
+  - name: snap_bank_master
+    relation: ref('bank_master')
+    description: >
+      SCD2 history of the bank reference list (name, category, mergers). Every change to
+      seeds/bank_master.csv becomes a new version with dbt_valid_from / dbt_valid_to.
+    config:
+      schema: snapshots
+      unique_key: bank_id
+      strategy: check
+      check_cols: [bank_name, bank_type, parent_bank_id, merged_into_bank_id]
+      hard_deletes: invalidate

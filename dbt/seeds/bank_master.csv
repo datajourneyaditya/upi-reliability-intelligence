@@ -1,0 +1,82 @@
+bank_id,bank_name,bank_type,parent_bank_id,merged_into_bank_id,notes
+state_bank_of_india,State Bank of India,Public sector,,,
+punjab_national_bank,Punjab National Bank,Public sector,,,
+bank_of_baroda,Bank of Baroda,Public sector,,,
+bank_of_india,Bank of India,Public sector,,,
+bank_of_maharashtra,Bank of Maharashtra,Public sector,,,
+canara_bank,Canara Bank,Public sector,,,
+central_bank_of_india,Central Bank of India,Public sector,,,
+indian_bank,Indian Bank,Public sector,,,
+indian_overseas_bank,Indian Overseas Bank,Public sector,,,
+punjab_and_sind_bank,Punjab and Sind Bank,Public sector,,,
+uco_bank,UCO Bank,Public sector,,,
+union_bank_of_india,Union Bank of India,Public sector,,,
+axis_bank,Axis Bank,Private sector,,,
+hdfc_bank,HDFC Bank,Private sector,,,
+icici_bank,ICICI Bank,Private sector,,,
+idbi_bank,IDBI Bank,Private sector,,,RBI re-categorised IDBI as a private sector bank in 2019
+idfc_first_bank,IDFC First Bank,Private sector,,,Published as 'IDFC Bank' in some months
+indusind_bank,IndusInd Bank,Private sector,,,
+jammu_and_kashmir_bank,Jammu and Kashmir Bank,Private sector,,,
+karnataka_bank,Karnataka Bank,Private sector,,,
+karur_vysya_bank,Karur Vysya Bank,Private sector,,,
+kotak_mahindra_bank,Kotak Mahindra Bank,Private sector,,,
+rbl_bank,RBL Bank,Private sector,,,
+south_indian_bank,South Indian Bank,Private sector,,,
+tamilnad_mercantile_bank,Tamilnad Mercantile Bank,Private sector,,,
+yes_bank,Yes Bank,Private sector,,,
+federal_bank,Federal Bank,Private sector,,,
+city_union_bank,City Union Bank,Private sector,,,
+bandhan_bank,Bandhan Bank,Private sector,,,
+au_small_finance_bank,AU Small Finance Bank,Small finance bank,,,Absorbed Fincare SFB in 2024; NPCI labels it '(Erstwhile Fincare)'
+fincare_small_finance_bank,Fincare Small Finance Bank,Small finance bank,,au_small_finance_bank,Merged into AU Small Finance Bank
+equitas_small_finance_bank,Equitas Small Finance Bank,Small finance bank,,,
+esaf_small_finance_bank,ESAF Small Finance Bank,Small finance bank,,,
+jana_small_finance_bank,Jana Small Finance Bank,Small finance bank,,,
+suryoday_small_finance_bank,Suryoday Small Finance Bank,Small finance bank,,,
+ujjivan_small_finance_bank,Ujjivan Small Finance Bank,Small finance bank,,,
+unity_small_finance_bank,Unity Small Finance Bank,Small finance bank,,,
+slice_small_finance_bank,slice Small Finance Bank,Small finance bank,,,
+airtel_payments_bank,Airtel Payments Bank,Payments bank,,,
+fino_payments_bank,Fino Payments Bank,Payments bank,,,
+india_post_payments_bank,India Post Payments Bank,Payments bank,,,
+jio_payments_bank,Jio Payments Bank,Payments bank,,,
+nsdl_payments_bank,NSDL Payments Bank,Payments bank,,,
+paytm_payments_bank,Paytm Payments Bank,Payments bank,,,RBI restricted new business from March 2024
+citibank,Citibank,Foreign bank,,,
+dbs_bank,DBS Bank India,Foreign bank,,,
+deutsche_bank,Deutsche Bank,Foreign bank,,,
+hsbc_bank,HSBC Bank,Foreign bank,,,
+standard_chartered_bank,Standard Chartered Bank,Foreign bank,,,
+cosmos_cooperative_bank,Cosmos Co-operative Bank,Cooperative bank,,,
+saraswat_cooperative_bank,Saraswat Co-operative Bank,Cooperative bank,,,
+andhra_pradesh_grameena_bank,Andhra Pradesh Grameena Bank,Regional rural bank,,,
+andhra_pradesh_grameena_vikas_bank,Andhra Pradesh Grameena Vikas Bank,Regional rural bank,,,
+andhra_pragathi_grameena_bank,Andhra Pragathi Grameena Bank,Regional rural bank,,,
+chaitanya_godavari_grameena_bank,Chaitanya Godavari Grameena Bank,Regional rural bank,,,
+baroda_rajasthan_kshetriya_gramin_bank,Baroda Rajasthan Kshetriya Gramin Bank,Regional rural bank,,,
+baroda_up_bank,Baroda U.P. Bank,Regional rural bank,,,NPCI labels it '(Erstwhile Baroda Uttar Pradesh Gramin Bank)'
+dakshin_bihar_gramin_bank,Dakshin Bihar Gramin Bank,Regional rural bank,,,NPCI labels it '(Erstwhile Madhya Bihar Gramin Bank)'
+karnataka_gramin_bank,Karnataka Gramin Bank,Regional rural bank,,,NPCI labels it '(Erstwhile Pragathi Krishna Gramin Bank)'
+karnataka_vikas_grameena_bank,Karnataka Vikas Grameena Bank,Regional rural bank,,,
+kerala_gramin_bank,Kerala Gramin Bank,Regional rural bank,,,
+maharashtra_gramin_bank,Maharashtra Gramin Bank,Regional rural bank,,,
+rajasthan_gramin_bank,Rajasthan Gramin Bank,Regional rural bank,,,
+rajasthan_marudhara_gramin_bank,Rajasthan Marudhara Gramin Bank,Regional rural bank,,,
+sarva_haryana_gramin_bank,Sarva Haryana Gramin Bank,Regional rural bank,,,
+sarva_up_gramin_bank,Sarva UP Gramin Bank,Regional rural bank,,,
+telangana_grameena_bank,Telangana Grameena Bank,Regional rural bank,,,
+uttar_pradesh_gramin_bank,Uttar Pradesh Gramin Bank,Regional rural bank,,,
+axis_bank_credit_card,Axis Bank Credit Card,Credit card on UPI,axis_bank,,Credit-card line on UPI published separately by NPCI
+hdfc_bank_credit_card,HDFC Bank Credit Card,Credit card on UPI,hdfc_bank,,Credit-card line on UPI published separately by NPCI
+icici_bank_credit_card,ICICI Bank Credit Card,Credit card on UPI,icici_bank,,Credit-card line on UPI published separately by NPCI
+sbi_cards,SBI Cards and Payment Services,Credit card on UPI,,,
+yes_bank_amazon_pay,Yes Bank - Amazon Pay,PSP handle,yes_bank,,Yes Bank's PSP line for Amazon Pay
+amazon_pay,Amazon Pay,Non-bank PPI issuer,,,
+fampay,FamPay (PPI),Non-bank PPI issuer,,,
+garagepreneurs_internet,Garagepreneurs Internet (slice),Non-bank PPI issuer,,,
+one_mobikwik,One MobiKwik Systems,Non-bank PPI issuer,,,
+tri_o_tech_solutions,Tri O Tech Solutions,Non-bank PPI issuer,,,
+npci_bhim,NPCI BHIM,NPCI app,,,Published as 'National Payments Corporation of India (BHIM)' then 'NPCI BHIM Services (NBSL)'
+phonepe_psp,PhonePe (PSP),Non-bank PSP,,,PhonePe published as its own PSP entity from Jun 2026
+juspay_technologies,Juspay Technologies,Non-bank PSP,,,

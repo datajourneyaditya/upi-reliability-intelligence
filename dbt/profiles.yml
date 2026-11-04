@@ -1,0 +1,20 @@
+# Used by the Lakeflow Job dbt task (host/token are injected there) and for local runs.
+upi_reliability:
+  target: prod
+  outputs:
+    prod:
+      type: databricks
+      catalog: upi_reliability
+      schema: marts
+      host: "{{ env_var('DBT_HOST', 'dbc-df33b073-3796.cloud.databricks.com') }}"
+      http_path: "{{ env_var('DBT_HTTP_PATH', '/sql/1.0/warehouses/b36027f0bc1ea75e') }}"
+      token: "{{ env_var('DBT_ACCESS_TOKEN', '') }}"
+      threads: 8
+    ci:
+      type: databricks
+      catalog: upi_reliability
+      schema: "ci_{{ env_var('DBT_CI_SUFFIX', 'local') }}"
+      host: "{{ env_var('DBT_HOST', 'dbc-df33b073-3796.cloud.databricks.com') }}"
+      http_path: "{{ env_var('DBT_HTTP_PATH', '/sql/1.0/warehouses/b36027f0bc1ea75e') }}"
+      token: "{{ env_var('DBT_ACCESS_TOKEN', '') }}"
+      threads: 8

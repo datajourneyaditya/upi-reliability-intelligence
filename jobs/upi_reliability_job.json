@@ -1,0 +1,46 @@
+{
+  "name": "upi_reliability_monthly",
+  "description": "NPCI UPI reliability lakehouse: raw volume -> raw tables -> dbt (staging/intermediate/marts, snapshots, tests) -> metric views -> degradation alert.",
+  "tags": {"project": "upi-reliability-intelligence"},
+  "schedule": {"quartz_cron_expression": "0 30 6 25 * ?", "timezone_id": "Asia/Kolkata", "pause_status": "UNPAUSED"},
+  "max_concurrent_runs": 1,
+  "email_notifications": {"on_failure": ["adityasawant2205@gmail.com"]},
+  "environments": [{"environment_key": "dbt_env", "spec": {"client": "2", "dependencies": ["dbt-databricks>=1.10,<1.11"]}}],
+  "tasks": [
+    {
+      "task_key": "ingest_npci_raw",
+      "notebook_task": {"notebook_path": "/Workspace/Users/adityasawant2205@gmail.com/upi_reliability/ingestion/01_ingest_npci_raw", "base_parameters": {"catalog": "upi_reliability"}},
+      "max_retries": 2, "min_retry_interval_millis": 300000, "timeout_seconds": 1800
+    },
+    {
+      "task_key": "dbt_build",
+      "depends_on": [{"task_key": "ingest_npci_raw"}],
+      "environment_key": "dbt_env",
+      "dbt_task": {
+        "source": "WORKSPACE",
+        "project_directory": "/Workspace/Users/adityasawant2205@gmail.com/upi_reliability/dbt",
+        "warehouse_id": "b36027f0bc1ea75e",
+        "catalog": "upi_reliability",
+        "schema": "marts",
+        "commands": [
+          "dbt source freshness",
+          "dbt seed",
+          "dbt snapshot",
+          "dbt build --exclude resource_type:seed resource_type:snapshot"
+        ]
+      },
+      "max_retries": 1, "min_retry_interval_millis": 120000, "timeout_seconds": 3600
+    },
+    {
+      "task_key": "publish_metric_views",
+      "depends_on": [{"task_key": "dbt_build"}],
+      "sql_task": {"file": {"path": "/Workspace/Users/adityasawant2205@gmail.com/upi_reliability/semantic/metric_views.sql", "source": "WORKSPACE"}, "warehouse_id": "b36027f0bc1ea75e"},
+      "max_retries": 1
+    },
+    {
+      "task_key": "degradation_alert_check",
+      "depends_on": [{"task_key": "dbt_build"}],
+      "sql_task": {"file": {"path": "/Workspace/Users/adityasawant2205@gmail.com/upi_reliability/semantic/alerts_degradation.sql", "source": "WORKSPACE"}, "warehouse_id": "b36027f0bc1ea75e"}
+    }
+  ]
+}

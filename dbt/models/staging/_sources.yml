@@ -1,0 +1,24 @@
+version: 2
+
+sources:
+  - name: npci_raw
+    database: upi_reliability
+    schema: raw
+    description: >
+      Verbatim NPCI UPI statistics, landed by ingestion/01_ingest_npci_raw.py from the raw volume.
+      NPCI publishes the previous month's tables in the first ~3 weeks of the next month.
+    loaded_at_field: _loaded_at
+    freshness:
+      # NPCI's monthly release: alert if nothing new has landed in ~5 weeks.
+      warn_after: {count: 35, period: day}
+      error_after: {count: 50, period: day}
+    tables:
+      - name: npci_api_responses
+        description: One row per NPCI monthly API response (dataset x month), body untouched.
+        columns:
+          - name: dataset
+            tests: [not_null]
+          - name: period_month
+            tests: [not_null]
+      - name: npci_stat_rows
+        description: One row per published table row; every source column kept as a string in `fields`.

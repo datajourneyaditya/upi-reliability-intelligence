@@ -1,0 +1,52 @@
+version: 2
+models:
+  - name: dim_date
+    description: Month-level calendar with Indian fiscal year (April-March).
+    columns:
+      - {name: period_month, tests: [unique, not_null]}
+  - name: dim_bank
+    description: SCD2 bank dimension; one row per bank per published-name version.
+    columns:
+      - {name: bank_sk, tests: [unique, not_null]}
+      - {name: bank_id, tests: [not_null]}
+      - name: bank_type
+        tests:
+          - accepted_values:
+              values: ['Public sector', 'Private sector', 'Small finance bank', 'Payments bank', 'Foreign bank',
+                       'Cooperative bank', 'Regional rural bank', 'Credit card on UPI', 'PSP handle',
+                       'Non-bank PPI issuer', 'Non-bank PSP', 'NPCI app']
+              config: {severity: warn}
+    tests:
+      - unique_combination: {columns: [bank_id, valid_from]}
+      - one_current_version_per_bank
+  - name: dim_psp_app
+    description: UPI apps with parent company and sponsor PSP banks.
+    columns:
+      - {name: app_sk, tests: [unique, not_null]}
+  - name: fct_bank_monthly_performance
+    description: One row per bank x month x role (remitter or beneficiary).
+    tests:
+      - unique_combination: {columns: [bank_id, period_month, role]}
+    columns:
+      - {name: bank_sk, tests: [not_null, {relationships: {to: ref('dim_bank'), field: bank_sk}}]}
+      - {name: period_month, tests: [not_null, {relationships: {to: ref('dim_date'), field: period_month}}]}
+      - {name: role, tests: [{accepted_values: {values: [remitter, beneficiary]}}]}
+      - {name: td_pct, tests: [{pct_range: {}}]}
+      - {name: reliability_score, tests: [{pct_range: {}}]}
+  - name: fct_psp_monthly_performance
+    description: One row per PSP bank x month x role (payer or payee).
+    tests:
+      - unique_combination: {columns: [bank_id, period_month, role]}
+    columns:
+      - {name: bank_sk, tests: [not_null]}
+      - {name: role, tests: [{accepted_values: {values: [payer, payee]}}]}
+  - name: fct_app_monthly_volume
+    description: One row per UPI app x month (volume and value).
+    tests:
+      - unique_combination: {columns: [app_sk, period_month]}
+  - name: fct_ecosystem_monthly
+    description: One row per month; NPCI totals plus top-50 coverage and weighted decline rates.
+    columns:
+      - {name: period_month, tests: [unique, not_null]}
+      - name: top50_remitter_coverage
+        tests: [{pct_range: {min_value: 0, max_value: 1.05}}]

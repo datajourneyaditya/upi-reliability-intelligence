@@ -1,0 +1,22 @@
+version: 2
+models:
+  - name: mart_merchant_bank_scorecard
+    description: Merchants - beneficiary-bank reliability ranking, risk flags and a collections recommendation.
+    tests:
+      - unique_combination: {columns: [bank_id, period_month]}
+    columns:
+      - {name: collection_risk_tier, tests: [{accepted_values: {values: [Low, Medium, High]}}]}
+  - name: mart_fintech_partner_health
+    description: Fintech teams - partner-bank trends across all four NPCI sides, degradation alerts, excess failures.
+    tests:
+      - unique_combination: {columns: [bank_id, period_month, partner_side]}
+    columns:
+      - {name: health_status, tests: [{accepted_values: {values: [Critical, Degraded, Watch, Healthy]}}]}
+  - name: mart_payer_bank_checkout_risk
+    description: Consumer-app PMs - payer-bank failure exposure and suggested checkout action.
+    tests:
+      - unique_combination: {columns: [bank_id, period_month]}
+  - name: mart_app_checkout_risk
+    description: Consumer-app PMs - app volume with indicative sponsor-PSP technical-decline exposure.
+    tests:
+      - unique_combination: {columns: [app_sk, period_month]}

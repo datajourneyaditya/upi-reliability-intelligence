@@ -1,0 +1,25 @@
+version: 2
+seeds:
+  - name: bank_master
+    description: >
+      Reference list of banks / PSP entities that appear in NPCI tables, with RBI bank category.
+      Hand-maintained; changes are versioned by the snap_bank_master snapshot.
+    columns:
+      - name: bank_id
+        tests: [unique, not_null]
+      - name: bank_type
+        tests:
+          - accepted_values:
+              values: ['Public sector', 'Private sector', 'Small finance bank', 'Payments bank', 'Foreign bank',
+                       'Cooperative bank', 'Regional rural bank', 'Credit card on UPI', 'PSP handle',
+                       'Non-bank PPI issuer', 'Non-bank PSP', 'NPCI app']
+  - name: bank_aliases
+    description: Published spellings that the normalised name key alone cannot resolve.
+    columns:
+      - name: bank_id
+        tests: [{relationships: {to: ref('bank_master'), field: bank_id}}]
+  - name: psp_apps
+    description: >
+      Major UPI apps, their parent company and sponsor PSP banks, taken from each app's public VPA
+      handles (e.g. @ybl = Yes Bank for PhonePe). Used only to link app volume to PSP-bank decline
+      rates; NPCI does not publish decline rates per app.

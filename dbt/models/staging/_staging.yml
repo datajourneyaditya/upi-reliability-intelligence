@@ -1,0 +1,108 @@
+version: 2
+
+models:
+  - name: stg_npci__remitter_banks
+    description: NPCI "UPI Remitter Banks - Top 50" table. One row per payer bank per month.
+    config:
+      contract: {enforced: true}
+    columns:
+      - {name: period_month, data_type: date, tests: [not_null]}
+      - {name: source_row, data_type: int, description: Row position in the NPCI table (source grain)}
+      - {name: source_rank, data_type: int, description: NPCI's Sr. No. (occasionally repeated)}
+      - {name: bank_name_published, data_type: string, tests: [not_null]}
+      - {name: volume_mn, data_type: double, description: Total transactions sent by this bank's customers (millions)}
+      - {name: approved_pct, data_type: double, tests: [{pct_range: {}}]}
+      - {name: bd_pct, data_type: double, description: Business decline % (customer side), tests: [{pct_range: {}}]}
+      - {name: td_pct, data_type: double, description: Technical decline % (bank / network side), tests: [{pct_range: {}}]}
+      - {name: debit_reversal_count_mn, data_type: double}
+      - {name: debit_reversal_success_pct, data_type: double, tests: [{pct_range: {}}]}
+      - {name: is_debit_reversal_rescaled, data_type: boolean, description: "True where NPCI published the rate x100 (Aug 2022) and staging divided it by 100"}
+      - {name: udir_auto_update_sr_pct, data_type: double, tests: [{pct_range: {}}]}
+      - {name: udir_refund_sr_pct, data_type: double, tests: [{pct_range: {}}]}
+      - {name: source_url, data_type: string}
+      - {name: _loaded_at, data_type: timestamp}
+    tests:
+      - unique_combination: {columns: [period_month, source_row]}
+      - rates_reconcile: {parts: [approved_pct, bd_pct, td_pct]}
+
+  - name: stg_npci__beneficiary_banks
+    description: NPCI "UPI Beneficiary Banks - Top 50" table. One row per payee bank per month.
+    config:
+      contract: {enforced: true}
+    columns:
+      - {name: period_month, data_type: date, tests: [not_null]}
+      - {name: source_row, data_type: int, description: Row position in the NPCI table (source grain)}
+      - {name: source_rank, data_type: int, description: NPCI's Sr. No. (occasionally repeated)}
+      - {name: bank_name_published, data_type: string, tests: [not_null]}
+      - {name: volume_mn, data_type: double}
+      - {name: approved_pct, data_type: double, tests: [{pct_range: {}}]}
+      - {name: bd_pct, data_type: double, tests: [{pct_range: {}}]}
+      - {name: td_pct, data_type: double, tests: [{pct_range: {}}]}
+      - {name: deemed_approved_pct, data_type: double, description: Credit not confirmed online (pending credit), tests: [{pct_range: {}}]}
+      - {name: udir_auto_update_sr_pct, data_type: double, tests: [{pct_range: {}}]}
+      - {name: is_approved_pct_rebuilt, data_type: boolean, description: "True where the published approved % exceeded 100 and was rebuilt as 100 - BD - TD - deemed approved"}
+      - {name: source_url, data_type: string}
+      - {name: _loaded_at, data_type: timestamp}
+    tests:
+      - unique_combination: {columns: [period_month, source_row]}
+      # Known: in ~60 bank-months approved + BD + TD + deemed approved sums to 101-111%, i.e. NPCI
+      # appears to count some deemed-approved credits inside approved too. Kept as a warning.
+      - rates_reconcile: {parts: [approved_pct, bd_pct, td_pct, deemed_approved_pct]}
+
+  - name: stg_npci__psp_performance
+    description: >
+      NPCI "Payer PSP Performance" and "Payee PSP Performance" (top 15 each). A PSP here is the
+      sponsor *bank* that connects apps to UPI (e.g. Yes Bank for PhonePe), not the app itself.
+    config:
+      contract: {enforced: true}
+    columns:
+      - {name: period_month, data_type: date, tests: [not_null]}
+      - {name: psp_role, data_type: string, tests: [{accepted_values: {values: [payer, payee]}}]}
+      - {name: source_row, data_type: int, description: Row position in the NPCI table (source grain)}
+      - {name: source_rank, data_type: int, description: NPCI's Sr. No. (occasionally repeated)}
+      - {name: psp_name_published, data_type: string, tests: [not_null]}
+      - {name: volume_mn, data_type: double}
+      - {name: approved_pct, data_type: double, tests: [{pct_range: {}}]}
+      - {name: bd_pct, data_type: double, tests: [{pct_range: {}}]}
+      - {name: td_pct, data_type: double, tests: [{pct_range: {}}]}
+      - {name: is_fraction_rescaled, data_type: boolean, description: "True where NPCI published rates as fractions (May-Jun 2026) and staging multiplied by 100"}
+      - {name: source_url, data_type: string}
+      - {name: _loaded_at, data_type: timestamp}
+    tests:
+      - unique_combination: {columns: [period_month, psp_role, source_row]}
+      - rates_reconcile: {parts: [approved_pct, bd_pct, td_pct]}
+
+  - name: stg_npci__upi_apps
+    description: NPCI "UPI Apps" table — volume and value by payer app. No decline rates are published per app.
+    config:
+      contract: {enforced: true}
+    columns:
+      - {name: period_month, data_type: date, tests: [not_null]}
+      - {name: source_row, data_type: int, description: Row position in the NPCI table (source grain)}
+      - {name: source_rank, data_type: int, description: NPCI's Sr. No. (occasionally repeated)}
+      - {name: app_name_published, data_type: string, tests: [not_null]}
+      - {name: app_name, data_type: string, description: Published name without the '#' third-party-app marker}
+      - {name: app_key, data_type: string, description: Case- and spacing-insensitive app key}
+      - {name: is_third_party_app, data_type: boolean, description: NPCI marks TPAPs with '#'}
+      - {name: customer_initiated_volume_mn, data_type: double}
+      - {name: customer_initiated_value_cr, data_type: double}
+      - {name: b2c_volume_mn, data_type: double}
+      - {name: b2b_volume_mn, data_type: double}
+      - {name: total_volume_mn, data_type: double}
+      - {name: total_value_cr, data_type: double}
+      - {name: source_url, data_type: string}
+      - {name: _loaded_at, data_type: timestamp}
+    tests:
+      - unique_combination: {columns: [period_month, source_row]}
+
+  - name: stg_npci__ecosystem_monthly
+    description: NPCI UPI Product Statistics — ecosystem-wide monthly totals.
+    config:
+      contract: {enforced: true}
+    columns:
+      - {name: period_month, data_type: date, tests: [unique, not_null]}
+      - {name: banks_live, data_type: int}
+      - {name: volume_mn, data_type: double}
+      - {name: value_cr, data_type: double}
+      - {name: source_url, data_type: string}
+      - {name: _loaded_at, data_type: timestamp}

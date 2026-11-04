@@ -1,0 +1,57 @@
+# Slim CI: on every PR, build only the models changed vs. production (and their children) into an
+# isolated ci_pr<N>_* schema set, deferring unchanged parents to prod. Prod manifest comes from the
+# main-branch job below.
+name: dbt CI
+on:
+  pull_request:
+    paths: ["dbt/**", ".github/workflows/dbt_ci.yml"]
+  push:
+    branches: [main]
+    paths: ["dbt/**"]
+
+env:
+  DBT_HOST: ${{ secrets.DATABRICKS_HOST }}
+  DBT_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+  DBT_ACCESS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+  DBT_PROFILES_DIR: dbt
+
+jobs:
+  slim-ci:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      DBT_CI_SUFFIX: pr${{ github.event.number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install "dbt-databricks~=1.10.0"
+      - name: Fetch production manifest
+        uses: dawidd6/action-download-artifact@v6
+        with: {workflow: dbt_ci.yml, branch: main, name: prod-manifest, path: prod-state}
+        continue-on-error: true
+      - name: Build changed models
+        working-directory: dbt
+        run: |
+          if [ -f ../prod-state/manifest.json ]; then
+            dbt build --target ci --select state:modified+ --defer --state ../prod-state --favor-state
+          else
+            dbt build --target ci
+          fi
+      - name: Drop CI schemas
+        if: always()
+        working-directory: dbt
+        run: dbt run-operation drop_ci_schemas --target ci
+
+  publish-prod-manifest:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install "dbt-databricks~=1.10.0"
+      - working-directory: dbt
+        run: dbt parse --target prod
+      - uses: actions/upload-artifact@v4
+        with: {name: prod-manifest, path: dbt/target/manifest.json}

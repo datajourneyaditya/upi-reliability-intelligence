@@ -1,0 +1,42 @@
+alias_name,bank_id
+Citi,citibank
+CITI Bank,citibank
+CITIBANK CORPORATE,citibank
+Deutsche Bank Corp,deutsche_bank
+DBS Bank,dbs_bank
+Equitas Bank,equitas_small_finance_bank
+IDFC Bank,idfc_first_bank
+India Post Payment Bank,india_post_payments_bank
+RBL,rbl_bank
+Standard Chartered,standard_chartered_bank
+Suryodaya Small Finance Bank,suryoday_small_finance_bank
+Cosmos Bank,cosmos_cooperative_bank
+Cosmos Co-operative Bank,cosmos_cooperative_bank
+Saraswat Bank,saraswat_cooperative_bank
+Saraswat Co-operative Bank,saraswat_cooperative_bank
+National Payments Corporation of India (BHIM),npci_bhim
+NPCI BHIM Services (NBSL),npci_bhim
+Fino Payments Bank (FIP),fino_payments_bank
+Tri O Tech Solutions PPI,tri_o_tech_solutions
+Yes Bank (Amazon Pay),yes_bank_amazon_pay
+Amazon,amazon_pay
+FamPay PPI,fampay
+Garagepreneurs Internet,garagepreneurs_internet
+One Mobikwik Systems,one_mobikwik
+SBI Cards and Payment Services,sbi_cards
+AU Small Finance Bank (Erstwhile Fincare),au_small_finance_bank
+Baroda U.P. Bank (Erstwhile Baroda Uttar Pradesh Gramin Bank),baroda_up_bank
+Baroda UP Gramin Bank,baroda_up_bank
+Baroda Uttar Pradesh Gramin Bank,baroda_up_bank
+Karnataka Gramin Bank (Erstwhile Pragathi Krishna Gramin Bank),karnataka_gramin_bank
+Pragathi Krishna Gramin Bank,karnataka_gramin_bank
+Dakshin Bihar Gramin Bank (Erstwhile Madhya Bihar Gramin Bank),dakshin_bihar_gramin_bank
+Andhra Pradesh Grameena Vikas Bank - IMPS,andhra_pradesh_grameena_vikas_bank
+Axis Bank Credit Card,axis_bank_credit_card
+HDFC Bank Credit Card (HCB),hdfc_bank_credit_card
+ICICI Bank Credit Card,icici_bank_credit_card
+National Payments Corporation of India,npci_bhim
+BHIM,npci_bhim
+PhonePe Pvt. Ltd,phonepe_psp
+JUSPAY TECHNOLOGIES PVT LTD,juspay_technologies
+Bank Of India IBM,bank_of_india

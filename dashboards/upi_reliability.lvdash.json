@@ -1,0 +1,1778 @@
+{
+ "datasets": [
+  {
+   "name": "ds_kpi",
+   "displayName": "Latest month KPIs",
+   "queryLines": [
+    "SELECT date_format(e.period_month, 'MMM yyyy') AS month_label,\n",
+    "       round(e.volume_mn / 1000, 2) AS upi_volume_bn,\n",
+    "       round(e.remitter_td_pct_vw, 3) AS top50_td_pct,\n",
+    "       round(e.remitter_bd_pct_vw, 2) AS top50_bd_pct,\n",
+    "       round(e.est_technical_failures / 1e6, 1) AS est_tech_failures_mn,\n",
+    "       (SELECT count(*) FROM upi_reliability.marts.mart_fintech_partner_health h\n",
+    "         WHERE h.period_month = e.period_month AND h.degradation_alert) AS degraded_partner_sides,\n",
+    "       round(e.top50_remitter_coverage * 100, 1) AS top50_coverage_pct\n",
+    "FROM upi_reliability.marts.fct_ecosystem_monthly e\n",
+    "WHERE e.period_month = (SELECT max(period_month) FROM upi_reliability.marts.fct_bank_monthly_performance)\n"
+   ]
+  },
+  {
+   "name": "ds_eco_rates",
+   "displayName": "Ecosystem decline rates by month",
+   "queryLines": [
+    "SELECT period_month, round(remitter_td_pct_vw, 3) AS td_pct, round(remitter_bd_pct_vw, 2) AS bd_pct\n",
+    "FROM upi_reliability.marts.fct_ecosystem_monthly WHERE remitter_td_pct_vw IS NOT NULL\n"
+   ]
+  },
+  {
+   "name": "ds_eco_volume",
+   "displayName": "Ecosystem volume and failures",
+   "queryLines": [
+    "SELECT period_month, round(volume_mn / 1000, 2) AS upi_volume_bn,\n",
+    "       round(est_technical_failures / 1e6, 1) AS est_tech_failures_mn,\n",
+    "       degraded_remitter_banks, degraded_beneficiary_banks\n",
+    "FROM upi_reliability.marts.fct_ecosystem_monthly WHERE period_month >= '2022-01-01'\n"
+   ]
+  },
+  {
+   "name": "ds_td_by_type",
+   "displayName": "TD by bank type (metric view)",
+   "queryLines": [
+    "SELECT Month AS period_month, `Bank Type` AS bank_type,\n",
+    "       round(MEASURE(`Technical Decline Rate`), 3) AS td_pct\n",
+    "FROM upi_reliability.metrics.bank_reliability\n",
+    "WHERE Role = 'remitter' AND `Bank Type` IN ('Public sector', 'Private sector', 'Small finance bank', 'Payments bank', 'Regional rural bank')\n",
+    "GROUP BY ALL\n"
+   ]
+  },
+  {
+   "name": "ds_scorecard",
+   "displayName": "Merchant scorecard (latest month)",
+   "queryLines": [
+    "SELECT reliability_rank, bank_name, bank_type, round(credits_received_mn, 1) AS credits_received_mn,\n",
+    "       td_pct, round(td_pct_trailing_3m, 3) AS td_pct_3m, deemed_approved_pct, reliability_score,\n",
+    "       collection_risk_tier, recommendation,\n",
+    "       CASE collection_risk_tier WHEN 'Low' THEN 1 WHEN 'Medium' THEN 2 ELSE 3 END AS tier_order\n",
+    "FROM upi_reliability.marts.mart_merchant_bank_scorecard\n",
+    "WHERE period_month = (SELECT max(period_month) FROM upi_reliability.marts.fct_bank_monthly_performance)\n",
+    "ORDER BY reliability_rank\n"
+   ]
+  },
+  {
+   "name": "ds_tier_mix",
+   "displayName": "Risk tier mix by month",
+   "queryLines": [
+    "SELECT period_month, collection_risk_tier, count(*) AS banks\n",
+    "FROM upi_reliability.marts.mart_merchant_bank_scorecard\n",
+    "WHERE period_month >= '2022-07-01'\n",
+    "GROUP BY ALL\n"
+   ]
+  },
+  {
+   "name": "ds_alerts",
+   "displayName": "Partner alerts (latest month)",
+   "queryLines": [
+    "SELECT bank_name, partner_side, health_status, td_pct, round(td_pct_baseline_3m, 3) AS td_baseline_3m,\n",
+    "       round(td_pct_trend_3m, 3) AS td_trend_3m, consecutive_degraded_months,\n",
+    "       round(est_excess_failures_vs_baseline / 1e6, 2) AS excess_failures_mn,\n",
+    "       round(volume_mn, 1) AS volume_mn\n",
+    "FROM upi_reliability.marts.mart_fintech_partner_health\n",
+    "WHERE period_month = (SELECT max(period_month) FROM upi_reliability.marts.fct_bank_monthly_performance) AND health_status <> 'Healthy'\n",
+    "ORDER BY CASE health_status WHEN 'Critical' THEN 1 WHEN 'Degraded' THEN 2 ELSE 3 END, est_excess_failures_vs_baseline DESC\n"
+   ]
+  },
+  {
+   "name": "ds_partner_trend",
+   "displayName": "Partner TD vs baseline",
+   "queryLines": [
+    "SELECT period_month, bank_name, partner_side, 'TD %' AS series, td_pct AS rate_pct\n",
+    "FROM upi_reliability.marts.mart_fintech_partner_health\n",
+    "UNION ALL\n",
+    "SELECT period_month, bank_name, partner_side, '3-month baseline %', round(td_pct_baseline_3m, 3)\n",
+    "FROM upi_reliability.marts.mart_fintech_partner_health WHERE td_pct_baseline_3m IS NOT NULL\n"
+   ]
+  },
+  {
+   "name": "ds_degraded_trend",
+   "displayName": "Degraded partners by side",
+   "queryLines": [
+    "SELECT period_month, partner_side, count_if(degradation_alert) AS degraded\n",
+    "FROM upi_reliability.marts.mart_fintech_partner_health WHERE period_month >= '2022-04-01'\n",
+    "GROUP BY ALL\n"
+   ]
+  },
+  {
+   "name": "ds_pareto",
+   "displayName": "Payer bank failure contribution (latest)",
+   "queryLines": [
+    "SELECT failure_contribution_rank, bank_name, bank_type,\n",
+    "       round(payer_volume_share * 100, 1) AS volume_share_pct,\n",
+    "       round(technical_failure_share * 100, 1) AS failure_share_pct,\n",
+    "       round(cumulative_failure_share * 100, 1) AS cumulative_failure_pct,\n",
+    "       td_pct, round(td_vs_market, 2) AS td_vs_market,\n",
+    "       round(est_technical_failures / 1e6, 2) AS est_tech_failures_mn,\n",
+    "       checkout_action\n",
+    "FROM upi_reliability.marts.mart_payer_bank_checkout_risk\n",
+    "WHERE period_month = (SELECT max(period_month) FROM upi_reliability.marts.fct_bank_monthly_performance)\n",
+    "ORDER BY failure_contribution_rank\n"
+   ]
+  },
+  {
+   "name": "ds_pareto_top",
+   "displayName": "Top 15 payer banks by failure share",
+   "queryLines": [
+    "SELECT failure_contribution_rank, bank_name, round(technical_failure_share * 100, 1) AS failure_share_pct,\n",
+    "       round(payer_volume_share * 100, 1) AS volume_share_pct\n",
+    "FROM upi_reliability.marts.mart_payer_bank_checkout_risk\n",
+    "WHERE period_month = (SELECT max(period_month) FROM upi_reliability.marts.fct_bank_monthly_performance) AND failure_contribution_rank <= 15\n"
+   ]
+  },
+  {
+   "name": "ds_apps",
+   "displayName": "App checkout exposure (latest)",
+   "queryLines": [
+    "SELECT npci_volume_rank, app_name, coalesce(parent_company, '') AS parent_company,\n",
+    "       round(total_volume_mn, 1) AS volume_mn, round(volume_share * 100, 2) AS volume_share_pct,\n",
+    "       coalesce((SELECT concat_ws(', ', array_sort(collect_list(d.bank_name))) FROM upi_reliability.marts.dim_bank d\n",
+    "                 WHERE d.is_current AND array_contains(split(a.sponsors_reported, ', '), d.bank_id)), '') AS sponsors_reported,\n",
+    "       round(sponsor_payer_td_pct, 3) AS sponsor_td_pct,\n",
+    "       round(market_payer_td_pct, 3) AS market_td_pct,\n",
+    "       round(indicative_technical_failures / 1e6, 2) AS indicative_failures_mn,\n",
+    "       psp_risk_status\n",
+    "FROM upi_reliability.marts.mart_app_checkout_risk a\n",
+    "WHERE period_month = (SELECT max(period_month) FROM upi_reliability.marts.fct_bank_monthly_performance) AND volume_share >= 0.001\n",
+    "ORDER BY npci_volume_rank\n"
+   ]
+  }
+ ],
+ "pages": [
+  {
+   "name": "overview",
+   "displayName": "Overview",
+   "pageType": "PAGE_TYPE_CANVAS",
+   "layoutVersion": "GRID_V1",
+   "layout": [
+    {
+     "widget": {
+      "name": "t_overview",
+      "multilineTextboxSpec": {
+       "lines": [
+        "# UPI Reliability Intelligence\n",
+        "Real NPCI statistics, Jan 2022 to the latest published month. **TD** = technical decline (bank / network side), **BD** = business decline (customer side: wrong PIN, low balance, limits). Bank figures cover NPCI's top 50 remitter and beneficiary banks (~97% of successful volume).\n"
+       ]
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 0,
+      "width": 12,
+      "height": 2
+     }
+    },
+    {
+     "widget": {
+      "name": "k_month",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "ds_kpi",
+         "fields": [
+          {
+           "name": "month_label",
+           "expression": "`month_label`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "counter",
+       "encodings": {
+        "value": {
+         "fieldName": "month_label",
+         "displayName": "Latest month",
+         "format": {
+          "type": "string"
+         }
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Latest month"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 2,
+      "width": 2,
+      "height": 3
+     }
+    },
+    {
+     "widget": {
+      "name": "k_volume",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "ds_kpi",
+         "fields": [
+          {
+           "name": "upi_volume_bn",
+           "expression": "`upi_volume_bn`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "counter",
+       "encodings": {
+        "value": {
+         "fieldName": "upi_volume_bn",
+         "displayName": "UPI transactions (bn)",
+         "format": {
+          "type": "number-plain",
+          "decimalPlaces": {
+           "type": "max",
+           "places": 2
+          }
+         }
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "UPI transactions (bn)"
+       }
+      }
+     },
+     "position": {
+      "x": 2,
+      "y": 2,
+      "width": 2,
+      "height": 3
+     }
+    },
+    {
+     "widget": {
+      "name": "k_td",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "ds_kpi",
+         "fields": [
+          {
+           "name": "top50_td_pct",
+           "expression": "`top50_td_pct`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "counter",
+       "encodings": {
+        "value": {
+         "fieldName": "top50_td_pct",
+         "displayName": "Technical decline %",
+         "format": {
+          "type": "number-plain",
+          "decimalPlaces": {
+           "type": "max",
+           "places": 3
+          }
+         }
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Technical decline %"
+       }
+      }
+     },
+     "position": {
+      "x": 4,
+      "y": 2,
+      "width": 2,
+      "height": 3
+     }
+    },
+    {
+     "widget": {
+      "name": "k_bd",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "ds_kpi",
+         "fields": [
+          {
+           "name": "top50_bd_pct",
+           "expression": "`top50_bd_pct`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "counter",
+       "encodings": {
+        "value": {
+         "fieldName": "top50_bd_pct",
+         "displayName": "Business decline %",
+         "format": {
+          "type": "number-plain",
+          "decimalPlaces": {
+           "type": "max",
+           "places": 2
+          }
+         }
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Business decline %"
+       }
+      }
+     },
+     "position": {
+      "x": 6,
+      "y": 2,
+      "width": 2,
+      "height": 3
+     }
+    },
+    {
+     "widget": {
+      "name": "k_failed",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "ds_kpi",
+         "fields": [
+          {
+           "name": "est_tech_failures_mn",
+           "expression": "`est_tech_failures_mn`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "counter",
+       "encodings": {
+        "value": {
+         "fieldName": "est_tech_failures_mn",
+         "displayName": "Est. technical failures (mn)",
+         "format": {
+          "type": "number-plain",
+          "decimalPlaces": {
+           "type": "max",
+           "places": 1
+          }
+         }
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Est. technical failures (mn)"
+       }
+      }
+     },
+     "position": {
+      "x": 8,
+      "y": 2,
+      "width": 2,
+      "height": 3
+     }
+    },
+    {
+     "widget": {
+      "name": "k_degraded",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "ds_kpi",
+         "fields": [
+          {
+           "name": "degraded_partner_sides",
+           "expression": "`degraded_partner_sides`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "counter",
+       "encodings": {
+        "value": {
+         "fieldName": "degraded_partner_sides",
+         "displayName": "Degraded partner alerts",
+         "format": {
+          "type": "number-plain",
+          "decimalPlaces": {
+           "type": "max",
+           "places": 0
+          }
+         }
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Degraded partner alerts"
+       }
+      }
+     },
+     "position": {
+      "x": 10,
+      "y": 2,
+      "width": 2,
+      "height": 3
+     }
+    },
+    {
+     "widget": {
+      "name": "c_rates",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "ds_eco_rates",
+         "fields": [
+          {
+           "name": "period_month",
+           "expression": "`period_month`"
+          },
+          {
+           "name": "sum(td_pct)",
+           "expression": "SUM(`td_pct`)"
+          }
+         ],
+         "disaggregated": false
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "line",
+       "encodings": {
+        "x": {
+         "fieldName": "period_month",
+         "scale": {
+          "type": "temporal"
+         },
+         "displayName": "Month"
+        },
+        "y": {
+         "fieldName": "sum(td_pct)",
+         "scale": {
+          "type": "quantitative"
+         },
+         "displayName": "TD %"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Technical decline %, top-50 payer banks (volume-weighted)"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 5,
+      "width": 6,
+      "height": 6
+     }
+    },
+    {
+     "widget": {
+      "name": "c_td_type",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "ds_td_by_type",
+         "fields": [
+          {
+           "name": "period_month",
+           "expression": "`period_month`"
+          },
+          {
+           "name": "avg(td_pct)",
+           "expression": "AVG(`td_pct`)"
+          },
+          {
+           "name": "bank_type",
+           "expression": "`bank_type`"
+          }
+         ],
+         "disaggregated": false
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "line",
+       "encodings": {
+        "x": {
+         "fieldName": "period_month",
+         "scale": {
+          "type": "temporal"
+         },
+         "displayName": "Month"
+        },
+        "y": {
+         "fieldName": "avg(td_pct)",
+         "scale": {
+          "type": "quantitative"
+         },
+         "displayName": "TD %"
+        },
+        "color": {
+         "fieldName": "bank_type",
+         "scale": {
+          "type": "categorical"
+         },
+         "displayName": "Bank type"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Technical decline % by bank type (metric view)"
+       }
+      }
+     },
+     "position": {
+      "x": 6,
+      "y": 5,
+      "width": 6,
+      "height": 6
+     }
+    },
+    {
+     "widget": {
+      "name": "c_bd",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "ds_eco_rates",
+         "fields": [
+          {
+           "name": "period_month",
+           "expression": "`period_month`"
+          },
+          {
+           "name": "sum(bd_pct)",
+           "expression": "SUM(`bd_pct`)"
+          }
+         ],
+         "disaggregated": false
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "line",
+       "encodings": {
+        "x": {
+         "fieldName": "period_month",
+         "scale": {
+          "type": "temporal"
+         },
+         "displayName": "Month"
+        },
+        "y": {
+         "fieldName": "sum(bd_pct)",
+         "scale": {
+          "type": "quantitative"
+         },
+         "displayName": "BD %"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Business decline %, top-50 payer banks"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 11,
+      "width": 4,
+      "height": 5
+     }
+    },
+    {
+     "widget": {
+      "name": "c_volume",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "ds_eco_volume",
+         "fields": [
+          {
+           "name": "period_month",
+           "expression": "`period_month`"
+          },
+          {
+           "name": "sum(upi_volume_bn)",
+           "expression": "SUM(`upi_volume_bn`)"
+          }
+         ],
+         "disaggregated": false
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "bar",
+       "encodings": {
+        "x": {
+         "fieldName": "period_month",
+         "scale": {
+          "type": "temporal"
+         },
+         "displayName": "Month"
+        },
+        "y": {
+         "fieldName": "sum(upi_volume_bn)",
+         "scale": {
+          "type": "quantitative"
+         },
+         "displayName": "Transactions (bn)"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "UPI transactions per month (bn)"
+       }
+      }
+     },
+     "position": {
+      "x": 4,
+      "y": 11,
+      "width": 4,
+      "height": 5
+     }
+    },
+    {
+     "widget": {
+      "name": "c_failed",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "ds_eco_volume",
+         "fields": [
+          {
+           "name": "period_month",
+           "expression": "`period_month`"
+          },
+          {
+           "name": "sum(est_tech_failures_mn)",
+           "expression": "SUM(`est_tech_failures_mn`)"
+          }
+         ],
+         "disaggregated": false
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "bar",
+       "encodings": {
+        "x": {
+         "fieldName": "period_month",
+         "scale": {
+          "type": "temporal"
+         },
+         "displayName": "Month"
+        },
+        "y": {
+         "fieldName": "sum(est_tech_failures_mn)",
+         "scale": {
+          "type": "quantitative"
+         },
+         "displayName": "Failures (mn)"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Estimated technical failures per month (mn)"
+       }
+      }
+     },
+     "position": {
+      "x": 8,
+      "y": 11,
+      "width": 4,
+      "height": 5
+     }
+    }
+   ]
+  },
+  {
+   "name": "merchants",
+   "displayName": "Merchants",
+   "pageType": "PAGE_TYPE_CANVAS",
+   "layoutVersion": "GRID_V1",
+   "layout": [
+    {
+     "widget": {
+      "name": "t_merch",
+      "multilineTextboxSpec": {
+       "lines": [
+        "## Which bank should a merchant collect into?\n",
+        "Beneficiary (payee) bank reliability for the latest month. **Reliability score** (0-100) ranks banks on trailing 3-month TD (50%), TD trend (25%) and volatility (25%). Rates are bank-wide risk indicators, not any merchant's own checkout.\n"
+       ]
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 0,
+      "width": 12,
+      "height": 2
+     }
+    },
+    {
+     "widget": {
+      "name": "tb_scorecard",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "ds_scorecard",
+         "fields": [
+          {
+           "name": "reliability_rank",
+           "expression": "`reliability_rank`"
+          },
+          {
+           "name": "bank_name",
+           "expression": "`bank_name`"
+          },
+          {
+           "name": "bank_type",
+           "expression": "`bank_type`"
+          },
+          {
+           "name": "credits_received_mn",
+           "expression": "`credits_received_mn`"
+          },
+          {
+           "name": "td_pct",
+           "expression": "`td_pct`"
+          },
+          {
+           "name": "td_pct_3m",
+           "expression": "`td_pct_3m`"
+          },
+          {
+           "name": "deemed_approved_pct",
+           "expression": "`deemed_approved_pct`"
+          },
+          {
+           "name": "reliability_score",
+           "expression": "`reliability_score`"
+          },
+          {
+           "name": "collection_risk_tier",
+           "expression": "`collection_risk_tier`"
+          },
+          {
+           "name": "recommendation",
+           "expression": "`recommendation`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "table",
+       "encodings": {
+        "columns": [
+         {
+          "fieldName": "reliability_rank",
+          "displayName": "Rank"
+         },
+         {
+          "fieldName": "bank_name",
+          "displayName": "Bank"
+         },
+         {
+          "fieldName": "bank_type",
+          "displayName": "Type"
+         },
+         {
+          "fieldName": "credits_received_mn",
+          "displayName": "Credits received (mn)",
+          "format": {
+           "type": "number",
+           "decimalPlaces": {
+            "type": "exact",
+            "places": 1
+           }
+          }
+         },
+         {
+          "fieldName": "td_pct",
+          "displayName": "TD %",
+          "format": {
+           "type": "number",
+           "decimalPlaces": {
+            "type": "exact",
+            "places": 2
+           }
+          }
+         },
+         {
+          "fieldName": "td_pct_3m",
+          "displayName": "TD % 3m",
+          "format": {
+           "type": "number",
+           "decimalPlaces": {
+            "type": "exact",
+            "places": 3
+           }
+          }
+         },
+         {
+          "fieldName": "deemed_approved_pct",
+          "displayName": "Pending credit %",
+          "format": {
+           "type": "number",
+           "decimalPlaces": {
+            "type": "exact",
+            "places": 2
+           }
+          }
+         },
+         {
+          "fieldName": "reliability_score",
+          "displayName": "Score",
+          "format": {
+           "type": "number",
+           "decimalPlaces": {
+            "type": "exact",
+            "places": 1
+           }
+          }
+         },
+         {
+          "fieldName": "collection_risk_tier",
+          "displayName": "Risk tier"
+         },
+         {
+          "fieldName": "recommendation",
+          "displayName": "Recommendation"
+         }
+        ]
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Beneficiary bank scorecard, latest month"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 2,
+      "width": 12,
+      "height": 15
+     }
+    },
+    {
+     "widget": {
+      "name": "c_tiers",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "ds_tier_mix",
+         "fields": [
+          {
+           "name": "period_month",
+           "expression": "`period_month`"
+          },
+          {
+           "name": "sum(banks)",
+           "expression": "SUM(`banks`)"
+          },
+          {
+           "name": "collection_risk_tier",
+           "expression": "`collection_risk_tier`"
+          }
+         ],
+         "disaggregated": false
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "bar",
+       "encodings": {
+        "x": {
+         "fieldName": "period_month",
+         "scale": {
+          "type": "temporal"
+         },
+         "displayName": "Month"
+        },
+        "y": {
+         "fieldName": "sum(banks)",
+         "scale": {
+          "type": "quantitative"
+         },
+         "displayName": "Banks"
+        },
+        "color": {
+         "fieldName": "collection_risk_tier",
+         "scale": {
+          "type": "categorical",
+          "mappings": [
+           {
+            "value": "Low",
+            "color": "#2E9E5B"
+           },
+           {
+            "value": "Medium",
+            "color": "#E8A33D"
+           },
+           {
+            "value": "High",
+            "color": "#D64545"
+           }
+          ]
+         },
+         "displayName": "Risk tier"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Top-50 beneficiary banks by collection risk tier"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 17,
+      "width": 12,
+      "height": 6
+     }
+    }
+   ]
+  },
+  {
+   "name": "partners",
+   "displayName": "Fintech partners",
+   "pageType": "PAGE_TYPE_CANVAS",
+   "layoutVersion": "GRID_V1",
+   "layout": [
+    {
+     "widget": {
+      "name": "t_partner",
+      "multilineTextboxSpec": {
+       "lines": [
+        "## Partner bank health\n",
+        "Every partner across the four NPCI views: remitter bank, beneficiary bank, payer PSP and payee PSP. **Degraded** = TD at least 0.30 pp above the bank's own trailing 3-month baseline and at least 2x it. **Excess failures** = failures above what the baseline would have produced.\n"
+       ]
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 0,
+      "width": 12,
+      "height": 2
+     }
+    },
+    {
+     "widget": {
+      "name": "tb_alerts",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "ds_alerts",
+         "fields": [
+          {
+           "name": "bank_name",
+           "expression": "`bank_name`"
+          },
+          {
+           "name": "partner_side",
+           "expression": "`partner_side`"
+          },
+          {
+           "name": "health_status",
+           "expression": "`health_status`"
+          },
+          {
+           "name": "td_pct",
+           "expression": "`td_pct`"
+          },
+          {
+           "name": "td_baseline_3m",
+           "expression": "`td_baseline_3m`"
+          },
+          {
+           "name": "td_trend_3m",
+           "expression": "`td_trend_3m`"
+          },
+          {
+           "name": "consecutive_degraded_months",
+           "expression": "`consecutive_degraded_months`"
+          },
+          {
+           "name": "excess_failures_mn",
+           "expression": "`excess_failures_mn`"
+          },
+          {
+           "name": "volume_mn",
+           "expression": "`volume_mn`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "table",
+       "encodings": {
+        "columns": [
+         {
+          "fieldName": "bank_name",
+          "displayName": "Partner"
+         },
+         {
+          "fieldName": "partner_side",
+          "displayName": "Side"
+         },
+         {
+          "fieldName": "health_status",
+          "displayName": "Status"
+         },
+         {
+          "fieldName": "td_pct",
+          "displayName": "TD %",
+          "format": {
+           "type": "number",
+           "decimalPlaces": {
+            "type": "exact",
+            "places": 2
+           }
+          }
+         },
+         {
+          "fieldName": "td_baseline_3m",
+          "displayName": "Baseline %",
+          "format": {
+           "type": "number",
+           "decimalPlaces": {
+            "type": "exact",
+            "places": 3
+           }
+          }
+         },
+         {
+          "fieldName": "td_trend_3m",
+          "displayName": "3m trend (pp)",
+          "format": {
+           "type": "number",
+           "decimalPlaces": {
+            "type": "exact",
+            "places": 3
+           }
+          }
+         },
+         {
+          "fieldName": "consecutive_degraded_months",
+          "displayName": "Months degraded"
+         },
+         {
+          "fieldName": "excess_failures_mn",
+          "displayName": "Excess failures (mn)",
+          "format": {
+           "type": "number",
+           "decimalPlaces": {
+            "type": "exact",
+            "places": 2
+           }
+          }
+         },
+         {
+          "fieldName": "volume_mn",
+          "displayName": "Volume (mn)",
+          "format": {
+           "type": "number",
+           "decimalPlaces": {
+            "type": "exact",
+            "places": 1
+           }
+          }
+         }
+        ]
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Partners not healthy in the latest month"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 2,
+      "width": 12,
+      "height": 9
+     }
+    },
+    {
+     "widget": {
+      "name": "f_bank",
+      "queries": [
+       {
+        "name": "filter_f_bank_ds_partner_trend",
+        "query": {
+         "datasetName": "ds_partner_trend",
+         "fields": [
+          {
+           "name": "bank_name",
+           "expression": "`bank_name`"
+          }
+         ],
+         "disaggregated": false
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "filter-single-select",
+       "encodings": {
+        "fields": [
+         {
+          "fieldName": "bank_name",
+          "queryName": "filter_f_bank_ds_partner_trend",
+          "displayName": "Partner bank"
+         }
+        ]
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Partner bank"
+       },
+       "selection": {
+        "defaultSelection": {
+         "values": {
+          "dataType": "STRING",
+          "values": [
+           {
+            "value": "State Bank of India"
+           }
+          ]
+         }
+        }
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 11,
+      "width": 4,
+      "height": 2
+     }
+    },
+    {
+     "widget": {
+      "name": "f_side",
+      "queries": [
+       {
+        "name": "filter_f_side_ds_partner_trend",
+        "query": {
+         "datasetName": "ds_partner_trend",
+         "fields": [
+          {
+           "name": "partner_side",
+           "expression": "`partner_side`"
+          }
+         ],
+         "disaggregated": false
+        }
+       },
+       {
+        "name": "filter_f_side_ds_degraded_trend",
+        "query": {
+         "datasetName": "ds_degraded_trend",
+         "fields": [
+          {
+           "name": "partner_side",
+           "expression": "`partner_side`"
+          }
+         ],
+         "disaggregated": false
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "filter-single-select",
+       "encodings": {
+        "fields": [
+         {
+          "fieldName": "partner_side",
+          "queryName": "filter_f_side_ds_partner_trend",
+          "displayName": "Side"
+         },
+         {
+          "fieldName": "partner_side",
+          "queryName": "filter_f_side_ds_degraded_trend",
+          "displayName": "Side"
+         }
+        ]
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Side"
+       },
+       "selection": {
+        "defaultSelection": {
+         "values": {
+          "dataType": "STRING",
+          "values": [
+           {
+            "value": "Remitter bank"
+           }
+          ]
+         }
+        }
+       }
+      }
+     },
+     "position": {
+      "x": 4,
+      "y": 11,
+      "width": 4,
+      "height": 2
+     }
+    },
+    {
+     "widget": {
+      "name": "t_filter_hint",
+      "multilineTextboxSpec": {
+       "lines": [
+        "Pick a partner and side to see its TD against its own baseline.\n"
+       ]
+      }
+     },
+     "position": {
+      "x": 8,
+      "y": 11,
+      "width": 4,
+      "height": 2
+     }
+    },
+    {
+     "widget": {
+      "name": "c_partner",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "ds_partner_trend",
+         "fields": [
+          {
+           "name": "period_month",
+           "expression": "`period_month`"
+          },
+          {
+           "name": "avg(rate_pct)",
+           "expression": "AVG(`rate_pct`)"
+          },
+          {
+           "name": "series",
+           "expression": "`series`"
+          }
+         ],
+         "disaggregated": false
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "line",
+       "encodings": {
+        "x": {
+         "fieldName": "period_month",
+         "scale": {
+          "type": "temporal"
+         },
+         "displayName": "Month"
+        },
+        "y": {
+         "fieldName": "avg(rate_pct)",
+         "scale": {
+          "type": "quantitative"
+         },
+         "displayName": "%"
+        },
+        "color": {
+         "fieldName": "series",
+         "scale": {
+          "type": "categorical"
+         },
+         "displayName": "series"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "TD % vs 3-month baseline"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 13,
+      "width": 8,
+      "height": 6
+     }
+    },
+    {
+     "widget": {
+      "name": "c_degraded",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "ds_degraded_trend",
+         "fields": [
+          {
+           "name": "period_month",
+           "expression": "`period_month`"
+          },
+          {
+           "name": "sum(degraded)",
+           "expression": "SUM(`degraded`)"
+          }
+         ],
+         "disaggregated": false
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "bar",
+       "encodings": {
+        "x": {
+         "fieldName": "period_month",
+         "scale": {
+          "type": "temporal"
+         },
+         "displayName": "Month"
+        },
+        "y": {
+         "fieldName": "sum(degraded)",
+         "scale": {
+          "type": "quantitative"
+         },
+         "displayName": "Partners"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Degraded partners per month"
+       }
+      }
+     },
+     "position": {
+      "x": 8,
+      "y": 13,
+      "width": 4,
+      "height": 6
+     }
+    }
+   ]
+  },
+  {
+   "name": "checkout",
+   "displayName": "Consumer checkout",
+   "pageType": "PAGE_TYPE_CANVAS",
+   "layoutVersion": "GRID_V1",
+   "layout": [
+    {
+     "widget": {
+      "name": "t_checkout",
+      "multilineTextboxSpec": {
+       "lines": [
+        "## Consumer checkout risk\n",
+        "Which payer banks and apps drive UPI checkout failures. App exposure is **indicative**: NPCI publishes no decline rates per app, so it uses the payer-side TD of each app's sponsor PSP banks (from public VPA handles).\n"
+       ]
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 0,
+      "width": 12,
+      "height": 2
+     }
+    },
+    {
+     "widget": {
+      "name": "c_pareto",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "ds_pareto_top",
+         "fields": [
+          {
+           "name": "bank_name",
+           "expression": "`bank_name`"
+          },
+          {
+           "name": "sum(failure_share_pct)",
+           "expression": "SUM(`failure_share_pct`)"
+          }
+         ],
+         "disaggregated": false
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "bar",
+       "encodings": {
+        "x": {
+         "fieldName": "bank_name",
+         "scale": {
+          "type": "categorical",
+          "sort": {
+           "by": "y-reversed"
+          }
+         },
+         "displayName": "Payer bank"
+        },
+        "y": {
+         "fieldName": "sum(failure_share_pct)",
+         "scale": {
+          "type": "quantitative"
+         },
+         "displayName": "% of technical failures"
+        }
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Top 15 payer banks by share of technical failures, latest month"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 2,
+      "width": 12,
+      "height": 6
+     }
+    },
+    {
+     "widget": {
+      "name": "tb_pareto",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "ds_pareto",
+         "fields": [
+          {
+           "name": "failure_contribution_rank",
+           "expression": "`failure_contribution_rank`"
+          },
+          {
+           "name": "bank_name",
+           "expression": "`bank_name`"
+          },
+          {
+           "name": "bank_type",
+           "expression": "`bank_type`"
+          },
+          {
+           "name": "volume_share_pct",
+           "expression": "`volume_share_pct`"
+          },
+          {
+           "name": "failure_share_pct",
+           "expression": "`failure_share_pct`"
+          },
+          {
+           "name": "cumulative_failure_pct",
+           "expression": "`cumulative_failure_pct`"
+          },
+          {
+           "name": "td_pct",
+           "expression": "`td_pct`"
+          },
+          {
+           "name": "td_vs_market",
+           "expression": "`td_vs_market`"
+          },
+          {
+           "name": "checkout_action",
+           "expression": "`checkout_action`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "table",
+       "encodings": {
+        "columns": [
+         {
+          "fieldName": "failure_contribution_rank",
+          "displayName": "Rank"
+         },
+         {
+          "fieldName": "bank_name",
+          "displayName": "Payer bank"
+         },
+         {
+          "fieldName": "bank_type",
+          "displayName": "Type"
+         },
+         {
+          "fieldName": "volume_share_pct",
+          "displayName": "Volume share %",
+          "format": {
+           "type": "number",
+           "decimalPlaces": {
+            "type": "exact",
+            "places": 1
+           }
+          }
+         },
+         {
+          "fieldName": "failure_share_pct",
+          "displayName": "Failure share %",
+          "format": {
+           "type": "number",
+           "decimalPlaces": {
+            "type": "exact",
+            "places": 1
+           }
+          }
+         },
+         {
+          "fieldName": "cumulative_failure_pct",
+          "displayName": "Cumulative %",
+          "format": {
+           "type": "number",
+           "decimalPlaces": {
+            "type": "exact",
+            "places": 1
+           }
+          }
+         },
+         {
+          "fieldName": "td_pct",
+          "displayName": "TD %",
+          "format": {
+           "type": "number",
+           "decimalPlaces": {
+            "type": "exact",
+            "places": 2
+           }
+          }
+         },
+         {
+          "fieldName": "td_vs_market",
+          "displayName": "TD vs market",
+          "format": {
+           "type": "number",
+           "decimalPlaces": {
+            "type": "exact",
+            "places": 2
+           }
+          }
+         },
+         {
+          "fieldName": "checkout_action",
+          "displayName": "Suggested checkout action"
+         }
+        ]
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "Payer banks, latest month"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 8,
+      "width": 12,
+      "height": 9
+     }
+    },
+    {
+     "widget": {
+      "name": "tb_apps",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "ds_apps",
+         "fields": [
+          {
+           "name": "npci_volume_rank",
+           "expression": "`npci_volume_rank`"
+          },
+          {
+           "name": "app_name",
+           "expression": "`app_name`"
+          },
+          {
+           "name": "parent_company",
+           "expression": "`parent_company`"
+          },
+          {
+           "name": "volume_share_pct",
+           "expression": "`volume_share_pct`"
+          },
+          {
+           "name": "sponsors_reported",
+           "expression": "`sponsors_reported`"
+          },
+          {
+           "name": "sponsor_td_pct",
+           "expression": "`sponsor_td_pct`"
+          },
+          {
+           "name": "market_td_pct",
+           "expression": "`market_td_pct`"
+          },
+          {
+           "name": "indicative_failures_mn",
+           "expression": "`indicative_failures_mn`"
+          },
+          {
+           "name": "psp_risk_status",
+           "expression": "`psp_risk_status`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "table",
+       "encodings": {
+        "columns": [
+         {
+          "fieldName": "npci_volume_rank",
+          "displayName": "Rank"
+         },
+         {
+          "fieldName": "app_name",
+          "displayName": "App"
+         },
+         {
+          "fieldName": "parent_company",
+          "displayName": "Parent"
+         },
+         {
+          "fieldName": "volume_share_pct",
+          "displayName": "Volume share %",
+          "format": {
+           "type": "number",
+           "decimalPlaces": {
+            "type": "exact",
+            "places": 2
+           }
+          }
+         },
+         {
+          "fieldName": "sponsors_reported",
+          "displayName": "Sponsor PSP banks"
+         },
+         {
+          "fieldName": "sponsor_td_pct",
+          "displayName": "Sponsor TD %",
+          "format": {
+           "type": "number",
+           "decimalPlaces": {
+            "type": "exact",
+            "places": 3
+           }
+          }
+         },
+         {
+          "fieldName": "market_td_pct",
+          "displayName": "Market TD %",
+          "format": {
+           "type": "number",
+           "decimalPlaces": {
+            "type": "exact",
+            "places": 3
+           }
+          }
+         },
+         {
+          "fieldName": "indicative_failures_mn",
+          "displayName": "Indicative failures (mn)",
+          "format": {
+           "type": "number",
+           "decimalPlaces": {
+            "type": "exact",
+            "places": 2
+           }
+          }
+         },
+         {
+          "fieldName": "psp_risk_status",
+          "displayName": "Status"
+         }
+        ]
+       },
+       "frame": {
+        "showTitle": true,
+        "title": "UPI apps, latest month"
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 17,
+      "width": 12,
+      "height": 8
+     }
+    }
+   ]
+  }
+ ],
+ "uiSettings": {
+  "theme": {
+   "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+  }
+ }
+}

@@ -1,0 +1,46 @@
+name: upi_reliability
+version: "1.0.0"
+config-version: 2
+profile: upi_reliability
+
+model-paths: ["models"]
+snapshot-paths: ["snapshots"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+analysis-paths: ["analyses"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+vars:
+  # Degradation flag: TD this month is at least this many percentage points above the bank's
+  # trailing 3-month baseline AND at least this multiple of it. Calibrated on 2022-2026 data:
+  # flags ~11% of bank-months (~5 alerts a month); 0.15pp / 1.5x flagged ~19%.
+  degradation_abs_pp: 0.30
+  degradation_rel_multiple: 2.0
+  # approved + BD + TD (+ deemed approved) must land within this many points of 100.
+  reconciliation_tolerance_pp: 1.0
+
+models:
+  upi_reliability:
+    +persist_docs: {relation: true, columns: true}
+    staging:
+      +schema: staging
+      +materialized: view
+    intermediate:
+      +schema: intermediate
+      +materialized: view
+    marts:
+      +schema: marts
+      +materialized: table
+      core:
+        +file_format: delta
+
+snapshots:
+  upi_reliability:
+    +schema: snapshots
+    +target_schema: snapshots
+
+seeds:
+  upi_reliability:
+    +schema: staging
